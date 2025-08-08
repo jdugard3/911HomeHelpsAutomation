@@ -1,0 +1,296 @@
+# 911HomeHelpsAutomation Project Rules
+
+## 1. Project Structure Rules
+
+### Directory Organization
+```
+911homehelpsautomation/
+├── src/
+│   ├── webhooks/           # Webhook handlers
+│   ├── integrations/       # API wrappers for external services
+│   ├── services/           # Business logic and data transformation
+│   ├── middleware/         # Authentication, logging, validation
+│   ├── utils/             # Helper functions and utilities
+│   ├── config/            # Configuration files
+│   └── models/            # Data models/schemas
+├── tests/                 # Unit and integration tests
+├── docs/                  # API documentation and flow diagrams
+├── scripts/               # Deployment and utility scripts
+├── .env.example          # Environment variables template
+└── README.md             # Project documentation
+```
+
+### File Naming Convention
+- Use kebab-case for files: `gohighlevel-webhook.js`
+- Use PascalCase for classes: `FieldRoutesClient.js`
+- Use camelCase for functions and variables
+- Prefix test files with service name: `gohighlevel.test.js`
+
+## 2. Code Quality Rules
+
+### General Standards
+- **ES6+ JavaScript** - Use modern JavaScript features
+- **Async/Await** - No callbacks, minimal promises chains
+- **Error Handling** - Every API call must have try/catch
+- **Logging** - Log all webhook events, API calls, and errors
+- **Comments** - Document complex business logic and API integrations
+
+### API Integration Standards
+- **Rate Limiting** - Implement exponential backoff for retries
+- **Validation** - Validate all incoming webhook payloads
+- **Idempotency** - Handle duplicate webhook deliveries
+- **Timeouts** - Set reasonable timeouts for all external API calls
+- **Environment Variables** - Never hardcode API keys or URLs
+
+## 3. Integration Flow Rules
+
+### GoHighLevel → FieldRoutes
+- **Trigger**: Pipeline stage change to "Qualified"
+- **Action**: Create customer in FieldRoutes within 30 seconds
+- **Data Mapping**: Name, phone, email, address only
+- **Error Handling**: Retry 3 times, then alert via email
+- **Logging**: Log all successful and failed customer creations
+
+### FieldRoutes → GoHighLevel
+- **Trigger**: Proposal sent, lead won/lost status changes
+- **Action**: Update pipeline stage in GoHighLevel
+- **Validation**: Verify customer exists in both systems before update
+- **Error Handling**: Queue failed updates for retry
+
+### RingCentral Integration
+- **Sync Direction**: RingCentral → FieldRoutes (one-way)
+- **Data**: All calls, texts, voicemails logged to customer notes
+- **Format**: Timestamp, type, duration/content, user
+- **Real-time**: Process within 1 minute of communication
+
+## 4. Security Rules
+
+### Authentication
+- **API Keys**: Store in environment variables only
+- **Webhook Security**: Verify webhook signatures from all platforms
+- **HTTPS Only**: All external communications must use HTTPS
+- **Rate Limiting**: Implement rate limiting on all webhook endpoints
+
+### Data Protection
+- **No PII Logging** - Never log customer phone numbers or emails in plain text
+- **Data Retention** - Keep webhook logs for 30 days maximum
+- **Access Control** - Restrict API access to necessary endpoints only
+
+## 5. Error Handling Rules
+
+### Webhook Processing
+- **Acknowledge Fast** - Return 200 status within 3 seconds
+- **Process Later** - Queue complex operations for background processing
+- **Dead Letter Queue** - Store failed webhooks for manual review
+- **Alert Thresholds** - Alert if >5% of webhooks fail in 1 hour
+
+### API Integration Errors
+- **Retry Logic**: 3 attempts with exponential backoff
+- **Circuit Breaker**: Stop calling failing APIs temporarily
+- **Fallback**: Manual intervention process for critical failures
+- **Monitoring**: Track API response times and error rates
+
+## 6. Testing Rules
+
+### Test Coverage
+- **Unit Tests**: All business logic functions
+- **Integration Tests**: All external API calls (mocked)
+- **Webhook Tests**: All webhook handlers with sample payloads
+- **End-to-End**: Complete workflow tests in staging environment
+
+### Test Data
+- **No Production Data** - Use synthetic test data only
+- **Clean Slate** - Reset test environment before each test run
+- **Edge Cases** - Test missing fields, malformed data, API timeouts
+
+## 7. Deployment Rules
+
+### Environment Setup
+- **Local Development**: Use ngrok for webhook testing
+- **Staging**: Deploy to staging environment for full testing
+- **Production**: Blue-green deployment with rollback capability
+- **Environment Variables**: Different configs for each environment
+
+### Monitoring
+- **Health Checks**: Endpoint to verify all integrations are working
+- **Metrics**: Track webhook volumes, API response times, error rates
+- **Alerts**: Email/Slack alerts for system failures
+- **Logs**: Centralized logging with searchable format
+
+## 8. Documentation Rules
+
+### Code Documentation
+- **API Endpoints**: Document all webhook endpoints with examples
+- **Integration Flows**: Diagram all data flows between systems
+- **Setup Guide**: Step-by-step deployment instructions
+- **Troubleshooting**: Common issues and solutions
+
+### Change Management
+- **Version Control**: Git with meaningful commit messages
+- **Branching**: Feature branches for all changes
+- **Code Reviews**: Required before merging to main branch
+- **Changelog**: Document all changes affecting integrations
+
+## 9. Business Logic Rules
+
+### Data Synchronization
+- **Source of Truth**: GoHighLevel for contact data, FieldRoutes for service data
+- **Conflict Resolution**: Last write wins, with manual override capability
+- **Data Validation**: Validate required fields before syncing
+- **Audit Trail**: Log all data changes with timestamps and user info
+
+### Pipeline Stage Mapping
+```
+GoHighLevel Stage → Action
+"Qualified" → Create FieldRoutes customer
+"Proposal Sent" ← FieldRoutes proposal sent
+"Closed - Won" ← FieldRoutes service won
+"Closed - Lost" ← FieldRoutes lead marked lost
+```
+
+## 11. Senior Developer Thinking Rules - CRITICAL
+
+### Before Writing Any Code
+1. **ANALYZE FIRST** - Always understand the complete requirement before coding
+2. **CONSIDER EDGE CASES** - Think about what could go wrong, missing data, API failures
+3. **PLAN THE ARCHITECTURE** - Design the solution before implementation
+4. **VALIDATE ASSUMPTIONS** - Question requirements and verify API capabilities
+5. **THINK SCALABILITY** - Design for growth, not just current needs
+
+### API Integration Critical Rules
+1. **READ API DOCS THOROUGHLY** - Never assume API behavior without documentation
+2. **VALIDATE ALL RESPONSES** - Check status codes, response structure, error formats
+3. **HANDLE ALL HTTP STATUSES** - 200, 201, 400, 401, 403, 404, 429, 500, timeout scenarios
+4. **IMPLEMENT PROPER RETRIES** - Exponential backoff, max attempts, circuit breakers
+5. **LOG EVERYTHING MEANINGFUL** - Request/response (sanitized), errors, timing, correlation IDs
+
+### Data Transformation Rules
+1. **VALIDATE INPUT** - Check for required fields, data types, format constraints
+2. **SANITIZE DATA** - Remove/escape dangerous characters, normalize formats
+3. **MAP FIELDS EXPLICITLY** - Document every field transformation with comments
+4. **HANDLE MISSING DATA** - Default values, skip processing, or fail gracefully
+5. **PRESERVE DATA INTEGRITY** - Ensure no data loss during transformations
+
+### Error Handling Critical Rules
+1. **FAIL FAST** - Validate early, return errors immediately when detected
+2. **PROVIDE CONTEXT** - Include request ID, timestamp, affected customer, operation
+3. **CATEGORIZE ERRORS** - User errors, system errors, integration errors, temporary errors
+4. **IMPLEMENT DEAD LETTERS** - Store failed operations for manual review
+5. **ALERT APPROPRIATELY** - Critical failures immediately, patterns over time
+
+### Security Critical Rules
+1. **NEVER LOG SENSITIVE DATA** - PII, API keys, passwords, tokens
+2. **VALIDATE ALL WEBHOOKS** - Signature verification, timestamp checks, payload structure
+3. **SANITIZE INPUTS** - SQL injection, XSS, command injection prevention
+4. **USE ENVIRONMENT VARIABLES** - No hardcoded secrets, ever
+5. **IMPLEMENT RATE LIMITING** - Prevent abuse, DoS protection
+
+### Database/State Management Rules
+1. **USE TRANSACTIONS** - For multi-step operations that must succeed/fail together
+2. **INDEX FREQUENTLY QUERIED FIELDS** - Customer ID, timestamps, status fields
+3. **IMPLEMENT SOFT DELETES** - Keep audit trail of all operations
+4. **VERSION YOUR SCHEMAS** - Plan for database migrations
+5. **BACKUP CRITICAL DATA** - Customer mappings, configuration, audit logs
+
+### Testing Critical Rules
+1. **TEST UNHAPPY PATHS** - API failures, malformed data, network issues
+2. **MOCK EXTERNAL SERVICES** - Don't rely on external APIs for tests
+3. **TEST IDEMPOTENCY** - Ensure duplicate webhook processing is safe
+4. **VALIDATE ERROR SCENARIOS** - Test all error handling code paths
+5. **PERFORMANCE TEST** - Load test webhook endpoints and API integrations
+
+## 12. Code Architecture Rules - ENFORCE STRICTLY
+
+### Separation of Concerns
+```
+Controllers (Webhooks) → Services (Business Logic) → Integrations (API Calls) → Models (Data)
+```
+1. **Controllers** - Only handle HTTP, validation, response formatting
+2. **Services** - Business logic, orchestration, data transformation
+3. **Integrations** - Pure API client code, no business logic
+4. **Models** - Data structures, validation schemas
+
+### Function Design Rules
+1. **SINGLE RESPONSIBILITY** - Each function does ONE thing well
+2. **PURE FUNCTIONS PREFERRED** - Same input = same output, no side effects
+3. **EXPLICIT PARAMETERS** - No hidden dependencies, clear interfaces
+4. **RETURN CONSISTENT TYPES** - Don't return different types based on conditions
+5. **DOCUMENT COMPLEX LOGIC** - Explain WHY, not just WHAT
+
+### Error Propagation Rules
+1. **THROW EARLY** - Don't continue processing with invalid data
+2. **CATCH SPECIFICALLY** - Handle different error types differently
+3. **ENRICH ERROR CONTEXT** - Add operation context as errors bubble up
+4. **LOG AT BOUNDARIES** - Service layer logs, not integration layer
+5. **RETURN MEANINGFUL MESSAGES** - Help debugging without exposing internals
+
+## 13. Integration-Specific Critical Rules
+
+### GoHighLevel Integration
+1. **VERIFY WEBHOOK SIGNATURES** - Always validate webhook authenticity
+2. **HANDLE PIPELINE STAGE CHANGES** - Map stages correctly, handle unknown stages
+3. **CONTACT DATA VALIDATION** - Ensure required fields exist before processing
+4. **API RATE LIMITS** - Respect GoHighLevel's rate limiting (check documentation)
+5. **RETRY LOGIC** - Handle temporary API failures gracefully
+
+### FieldRoutes Integration
+1. **UNDERSTAND API LIMITATIONS** - Research all endpoints and capabilities thoroughly
+2. **HANDLE CUSTOMER CREATION** - Check if customer exists before creating
+3. **MAP LEAD STATUSES** - Document all possible lead states and mappings
+4. **DOCUMENT APPROVAL FLOW** - Understand manual approval requirements
+5. **ERROR RECOVERY** - Plan for partial failures in multi-step operations
+
+### RingCentral Integration
+1. **WEBHOOK RELIABILITY** - Handle out-of-order delivery, duplicates
+2. **COMMUNICATION TYPES** - Support calls, SMS, voicemail, fax appropriately
+3. **REAL-TIME REQUIREMENTS** - Process communication logs quickly
+4. **DATA FORMAT** - Standardize communication log format in FieldRoutes
+5. **MOBILE APP INTEGRATION** - Research deep-linking capabilities thoroughly
+
+## 14. Monitoring and Observability Rules
+
+### Logging Requirements
+1. **STRUCTURED LOGGING** - Use JSON format with consistent fields
+2. **CORRELATION IDs** - Track requests across service boundaries
+3. **LOG LEVELS** - ERROR (immediate attention), WARN (investigate), INFO (business events)
+4. **PERFORMANCE METRICS** - Track API response times, queue depths, processing times
+5. **BUSINESS METRICS** - Count successful syncs, failed operations, retry attempts
+
+### Health Check Requirements
+1. **DEEP HEALTH CHECKS** - Verify connectivity to all external services
+2. **DEPENDENCY STATUS** - Include status of GoHighLevel, FieldRoutes, RingCentral
+3. **PERFORMANCE INDICATORS** - Response time percentiles, error rates
+4. **RECOVERY PROCEDURES** - Document how to recover from each failure type
+5. **ALERTING THRESHOLDS** - Define when to alert humans vs. auto-recover
+
+## 15. Deployment and Operations Rules
+
+### Environment Management
+1. **CONFIGURATION VALIDATION** - Verify all required environment variables at startup
+2. **GRACEFUL SHUTDOWN** - Complete processing in-flight requests before shutdown
+3. **ROLLBACK CAPABILITY** - Always maintain ability to rollback to previous version
+4. **ZERO-DOWNTIME DEPLOYMENT** - Design for rolling deployments
+5. **ENVIRONMENT PARITY** - Keep dev/staging/production as similar as possible
+
+### Incident Response Rules
+1. **RUNBOOK DOCUMENTATION** - Document common failure scenarios and solutions
+2. **ESCALATION PROCEDURES** - Define when and how to escalate issues
+3. **DATA CONSISTENCY CHECKS** - Verify data integrity after incidents
+4. **POST-INCIDENT REVIEWS** - Learn from failures, improve systems
+5. **COMMUNICATION PROTOCOLS** - Keep stakeholders informed during incidents
+
+## 16. Code Review and Quality Gates
+
+### Before Any Commit
+1. **SELF-CODE REVIEW** - Review your own code before pushing
+2. **RUN ALL TESTS** - Unit tests, integration tests must pass
+3. **CHECK TEST COVERAGE** - Maintain >80% code coverage
+4. **LINT AND FORMAT** - Code must pass linting rules
+5. **SECURITY SCAN** - Check for common security vulnerabilities
+
+### Commit Message Rules
+1. **DESCRIPTIVE MESSAGES** - Explain WHAT and WHY, not just WHAT
+2. **REFERENCE ISSUES** - Link to requirements or bug reports
+3. **BREAKING CHANGES** - Clearly mark any breaking changes
+4. **SCOPE CLARITY** - Indicate which component/integration is affected
+5. **ATOMIC COMMITS** - Each commit should be a complete, working change
